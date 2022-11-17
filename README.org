@@ -1,13 +1,13 @@
 
 * Table of contents :toc:
 - [[#what-is-this-][What is this ?]]
-- [[#will-the-googlevision-api-be-very-costly-under-high-traffic][Will the GoogleVision API be very costly under high traffic]]
+- [[#will-the-googlevision-api-be-very-costly-under-high-traffic-][Will the GoogleVision API be very costly under high traffic ?]]
 - [[#is-this-api-route-public-][Is this API route public ?]]
 
 * What is this ?
 This is an HTTP server written in Go that can be used to upload Images from the frontend to the GoogleCloudStorage bucket.Upon uploading the image it will be checked for nudity, violence, medical and spoof content with the GoogleVision API. If the image looks normal to the GoogleVision API the it will be uploaded to the storage bucket and the URL will be returned
 
-* Will the GoogleVision API be very costly under high traffic
+* Will the GoogleVision API be very costly under high traffic ?
 Yes, *But* This application gets the checksum of every uploaded image and save the it with the image state in a Redis database that way when a new image is uploaded it will first check the redis database for the state of the checksum of the uploaded image.By doing it this way not to images of the same checksum will be checked by the GoogleVision API thus reducing its operational cost
 
 * Is this API route public ?
