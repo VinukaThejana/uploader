@@ -1,0 +1,9 @@
+# The env file
+.env
+
+# The service account files
+firebase.json
+google.json
+
+
+
