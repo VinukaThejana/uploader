@@ -36,29 +36,26 @@ func returnResponse(state string, sum string, redisClient *redis.Client, w http.
 }
 
 // CheckImage - Check the image for inappropriate content
-func CheckImage(fileName string, w http.ResponseWriter) {
+func CheckImage(fileName string, w http.ResponseWriter) (status Status) {
 	visionClient, err := initVision()
 	if err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return InternalServerError
 	}
 	defer visionClient.Close()
 
 	checkSumFile, err := os.Open(fileName)
 	if err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return InternalServerError
 	}
 	defer checkSumFile.Close()
 
 	// Get the checksum of the file
 	hash := sha256.New()
 	if _, err := io.Copy(hash, checkSumFile); err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return InternalServerError
 	}
 	sum := hex.EncodeToString(hash.Sum(nil))
 
@@ -66,37 +63,34 @@ func CheckImage(fileName string, w http.ResponseWriter) {
 	// with the check file of the image for faster processing
 	redisClient, err := Redis()
 	if err != nil {
-		log.Fatal(err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err)
+		return InternalServerError
 	}
 	state := redisClient.Get(ctx, sum).Val()
 
 	if state != "" {
 		if state != "PROPER_CONTENT" {
 			returnResponse(state, sum, redisClient, w)
+			return Json
 		}
 	}
 
 	file, err := os.Open(fileName)
 	if err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return InternalServerError
 	}
 	defer file.Close()
 
 	image, err := vision.NewImageFromReader(file)
 	if err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return InternalServerError
 	}
 	props, err := visionClient.DetectSafeSearch(ctx, image, nil)
 	if err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return InternalServerError
 	}
 
 	adult := props.Adult.Enum().String()
@@ -107,19 +101,25 @@ func CheckImage(fileName string, w http.ResponseWriter) {
 
 	if adult == "VERY_LIKELY" || adult == "LIKELY" || adult == "POSSIBLE" {
 		returnResponse("ADULT_CONTENT", sum, redisClient, w)
+		return Okay
 	}
 	if spoof == "VERY_LIKELY" || spoof == "LIKELY" {
 		returnResponse("SPOOF_CONTENT", sum, redisClient, w)
+		return Okay
 	}
 	if medical == "VERY_LIKELY" || medical == "LIKELY" {
 		returnResponse("MEDICAL_CONTENT", sum, redisClient, w)
+		return Okay
 	}
 	if violence == "VERY_LIKELY" || violence == "LIKELY" {
 		returnResponse("VIOLENCE_CONTENT", sum, redisClient, w)
+		return Okay
 	}
 	if racy == "VERY_LIKELY" || racy == "LIKELY" {
 		returnResponse("RACY_CONTENT", sum, redisClient, w)
+		return Okay
 	}
 
 	redisClient.Set(ctx, sum, "PROPER_CONTENT", 0)
+	return Okay
 }

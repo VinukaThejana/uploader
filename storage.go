@@ -25,20 +25,18 @@ func initStorage() (*storage.BucketHandle, error) {
 
 // UploadFile - Upload the given file to google cloud storage bucket and return
 // the URL
-func UploadFile(fileName string, uid string, ext string, w http.ResponseWriter) (url string) {
+func UploadFile(fileName string, uid string, ext string, w http.ResponseWriter) (url *string, status Status) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return nil, InternalServerError
 	}
 	defer file.Close()
 
 	bucket, err := initStorage()
 	if err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return nil, InternalServerError
 	}
 	object := bucket.Object(fmt.Sprintf("%s.%s", uid, ext))
 	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
@@ -46,16 +44,15 @@ func UploadFile(fileName string, uid string, ext string, w http.ResponseWriter) 
 
 	wc := object.NewWriter(ctx)
 	if _, err = io.Copy(wc, file); err != nil {
-		log.Fatal(err.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err.Error())
+		return nil, InternalServerError
 	}
 
 	if err := wc.Close(); err != nil {
-		log.Fatal(err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err)
+		return nil, InternalServerError
 	}
 
-	return fmt.Sprintf("https://storage.googleapis.com/%s/%s.%s", os.Getenv("STORAGE_BUCKET"), uid, ext)
+  URL := fmt.Sprintf("https://storage.googleapis.com/%s/%s.%s", os.Getenv("STORAGE_BUCKET"), uid, ext)
+  return &URL, Okay
 }

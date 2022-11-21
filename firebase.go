@@ -16,27 +16,24 @@ func initFirebase() (*firebase.App, error) {
 }
 
 // VerifyIDToken - Verify the firebase idToken
-func VerifyIDToken(idToken string, w http.ResponseWriter) (uid string) {
+func VerifyIDToken(idToken string, w http.ResponseWriter) (uid *string, status Status) {
 	app, err := initFirebase()
 	if err != nil {
-		log.Fatal(err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err)
+		return nil, InternalServerError
 	}
 
 	auth, err := app.Auth(ctx)
 	if err != nil {
-		log.Fatal(err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		log.Println(err)
+		return nil, InternalServerError
 	}
 
 	token, err := auth.VerifyIDToken(ctx, idToken)
 	if err != nil {
-		log.Fatal(err)
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+		log.Println(err)
+		return nil, UnAuthorized
 	}
 
-	return token.UID
+	return &token.UID, Okay
 }
